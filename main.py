@@ -58,7 +58,8 @@ class Settings (object):
          
         self.scriptname = 'dehydrated'
         self.wellknown = '/var/www/dehydrated/'
-        self.domains = 'example.com sub.example.com sub2.example.com\notherdomain.net sub.otherdomain.net\nmydomain.org blog.mydomain.org home.mydomain.org'
+        #self.domains = 'example.com sub.example.com sub2.example.com\notherdomain.net sub.otherdomain.net\nmydomain.org blog.mydomain.org home.mydomain.org'
+        self.domains = ''
         self.cronjob = False
         self.certs = []
         self.cronfile = 'dehydrated'
@@ -112,15 +113,18 @@ class LetsEncryptPlugin (SectionPlugin):
         domains = ''
         
         if os.path.isfile(filepath):
+            logging.debug("domains is a file!")
             with open(filepath) as f:
                 domains = f.readlines()
             domains = [x.strip() for x in domains]
             domains = "\n".join(domains)
+            logging.debug("domains file: %s" % (domains))
         else:
             domains =  self.find('domains').value
        
         cron = self.check_cron()
-        self.find('domains').value = str(domains)
+        #self.find('domains').value = str(domains)
+        self.settings.domains = str(domains)
         self.find('cronjob').value = cron
         #self.settings.certs = [CertificateInfo(self, self.settings.basedir + '/certs/' + x + '/', x) for x in self.list_available()]
 
@@ -169,7 +173,9 @@ class LetsEncryptPlugin (SectionPlugin):
             logging.debug("NO DOMAINS AVAILABLE")
             
         logging.debug("refresh certs value: %s" % self.settings.certs)
+        logging.debug("domains value: %s" % (self.settings.domains))
         self.binder.setup(self.settings).populate()
+
         
     def list_available(self):
         if not os.path.isdir(self.settings.basedir + "certs"):
@@ -354,6 +360,7 @@ class LetsEncryptPlugin (SectionPlugin):
         self.write_domain_file()
 
         if not self.has_domains:
+            
             self.cleanup_oldfiles()
             self.restart_nginx()
             return

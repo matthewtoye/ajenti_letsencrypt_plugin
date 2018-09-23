@@ -7,7 +7,7 @@
 					  <formline text="Dehydrated Basedir">
 						<textbox bind="basedir"/>
 					  </formline>
-					  <formline text="Script Name">
+					  <formline text="Dehydrated Filename">
 						<textbox bind="scriptname"/>
 					  </formline>
 					  <formline text="Wellknown Basedir">
@@ -66,10 +66,44 @@
 											<label text="Directory: " style="bold"/>
 											<label bind="dir"/>
                                         </box>
-										<box width="505">
-											<label text="SSL Chain: "/>
-											<codearea bind="sslchain" width="500" height="300"/>
-                                        </box>
+										<center>
+											<formgroup text="SSL Chain">									
+												<box width="700" height="300" scroll="True">
+													
+														<label bind="sslchain"/>
+													
+												</box>
+											</formgroup>	
+										</center>
+										<center>
+											<formgroup text="SSL Cert">									
+												<box width="700" height="300" scroll="True">
+													
+														<label bind="sslcert"/>
+													
+												</box>
+											</formgroup>	
+										</center>
+									
+										<center>
+											<formgroup text="SSL Full Chain">									
+												<box width="700" height="300" scroll="True">
+													
+														<label bind="sslfull"/>
+													
+												</box>
+											</formgroup>	
+										</center>
+										
+										<center>
+											<formgroup text="SSL Private Key">									
+												<box width="700" height="300" scroll="True">
+													
+														<label bind="sslpriv"/>
+												
+												</box>
+											</formgroup>	
+										</center>
                                     </vc>
                                 </indent>
                             </collapserow>
