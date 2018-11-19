@@ -6,10 +6,13 @@ import subprocess
 import json
 import time
 import shutil
+import collections
+import re
 
 from string import Template
 from shutil import copyfile
-
+from nginxparser import load
+from nginxparser import dumps
 from ajenti.api import *
 from ajenti.plugins.main.api import SectionPlugin
 from ajenti.ui import on
@@ -69,9 +72,10 @@ class Settings (object):
         self.nginx_config = 'letsencrypt_check.conf'
 
 class CertificateInfo(object):
-    def __init__(self, owner, bdir, entry, sslchain, sslcert, sslfull, sslpriv):
+    def __init__(self, owner, bdir, entry, date, sslchain, sslcert, sslfull, sslpriv):
         self.name = entry
         self.owner = owner
+        self.date = date
         self.dir = bdir
         self.sslchain = sslchain
         self.sslcert = sslcert
@@ -113,27 +117,34 @@ class LetsEncryptPlugin (SectionPlugin):
         domains = ''
         
         if os.path.isfile(filepath):
-            logging.debug("domains is a file!")
             with open(filepath) as f:
                 domains = f.readlines()
             domains = [x.strip() for x in domains]
             domains = "\n".join(domains)
-            logging.debug("domains file: %s" % (domains))
+            #logging.debug("domains file: %s" % (domains))
         else:
             domains =  self.find('domains').value
        
         cron = self.check_cron()
-        #self.find('domains').value = str(domains)
         self.settings.domains = str(domains)
         self.find('cronjob').value = cron
         #self.settings.certs = [CertificateInfo(self, self.settings.basedir + '/certs/' + x + '/', x) for x in self.list_available()]
 
         available_domains = self.list_available()
+        available_files = self.list_nginx_files()
+        #logging.debug("FILES AVAILABLE: %s" % (available_files))
         temp_obj = []
-        logging.debug("item: %s type: %s" % (available_domains, type(available_domains)))
+        #logging.debug("item: %s type: %s" % (available_domains, type(available_domains)))
         if available_domains:    
             for x in available_domains:
-            
+                #expiration date
+                my_date = self.settings.basedir + '/certs/' + x + '/expiration.date'
+                if os.path.isfile(my_date):
+                    with open(my_date, 'r') as myfile:
+                        my_date=myfile.read().replace('\n', '')
+                else:
+                    my_date = "NONE"
+                
                 #cert chain
                 my_ssl_chain = self.settings.basedir + '/certs/' + x + '/chain.pem'
                 if os.path.isfile(my_ssl_chain):
@@ -166,15 +177,20 @@ class LetsEncryptPlugin (SectionPlugin):
                 else:
                     my_ssl_key = "MISSING"
                     
-                temp_obj.append(CertificateInfo(self, self.settings.basedir + '/certs/' + x + '/', x, my_ssl_chain, my_ssl_cert, my_ssl_fullcert, my_ssl_key))
+                temp_obj.append(CertificateInfo(self, self.settings.basedir + '/certs/' + x + '/', x, my_date, my_ssl_chain, my_ssl_cert, my_ssl_fullcert, my_ssl_key))
                 
             self.settings.certs = temp_obj
         else:
             logging.debug("NO DOMAINS AVAILABLE")
             
-        logging.debug("refresh certs value: %s" % self.settings.certs)
-        logging.debug("domains value: %s" % (self.settings.domains))
         self.binder.setup(self.settings).populate()
+    
+    def list_nginx_files(self):
+        if not os.path.isdir(self.settings.nginx_sites_enabled):
+            return False
+            
+        return [x for x in sorted(os.listdir(self.settings.nginx_sites_enabled)) if
+                os.path.isfile(os.path.join(self.settings.nginx_sites_enabled, x))]
 
         
     def list_available(self):
@@ -278,7 +294,7 @@ class LetsEncryptPlugin (SectionPlugin):
         }
         filepath = self.settings.nginx_sites_available + self.settings.nginx_config
         filepath2 = self.settings.nginx_sites_enabled + self.settings.nginx_config
-        
+
         file = open(filepath, 'w')
         src = Template( template )
         if file.write(src.safe_substitute(dict)) is not None:
@@ -311,15 +327,205 @@ class LetsEncryptPlugin (SectionPlugin):
             return True
         return False
 
+    def flatten(self, l):
+        for el in l:
+            if isinstance(el, collections.Iterable) and not isinstance(el, basestring):
+                
+                for sub in self.flatten(el):
+                    yield sub
+            else:
+                yield el
+            
+    def testing(self):
+        available_domains = self.list_available()
+        
+        # Gets all enabled sites
+        available_nginx_files = self.list_nginx_files()
+        
+        for curr_domain in available_domains:
+            for curr_nginx_file in available_nginx_files:
+                if self.settings.nginx_config in curr_nginx_file:
+                    logging.debug("Skipping file: %s" % curr_nginx_file)
+                    continue
+                    
+                # Path is to the sites_available directory
+                filepath = self.settings.nginx_sites_available + curr_nginx_file
+                
+                if not os.path.isfile(filepath):
+                    logging.debug("File doesn't exist.. continuing")
+                    continue
+                    
+                loaded_conf = load(open(filepath))
+                
+                for servers in loaded_conf:
+                    server_conf = servers[1]
+                    ssl_true = False
+                    listen_position = None
+                    server_name_position = None
+                    ssl_cert_position = None
+                    ssl_cert_key_position = None
+                    curr_pos = 0
+                    
+                    for lines in server_conf:
+                        if isinstance(lines[0], str):
+                            
+                            if 'server_name' in lines[0] and len(lines) > 1:
+                                if server_name_position is not None:
+                                    logging.debug("There must be more than one server_name_position.. skipping this file because we don't know how to handle it.")
+                                    print("CONF %s" % loaded_conf)
+                                    break
+                                    
+                                server_name_position = curr_pos
+                                
+                            if 'listen' in lines[0] and len(lines) > 1:
+                                if listen_position is not None:
+                                    listen_position = [listen_position]
+                                    listen_position.append(curr_pos)
+                                    print("MULTIPLE LISTEN POSITION: %s" % listen_position)
+                                else:    
+                                    listen_position = curr_pos
+                            
+                            if 'ssl_certificate' in lines[0] and len(lines) > 1:
+                                if ssl_cert_position is not None:
+                                    logging.debug("There must be more than one ssl_certificate.. skipping this file because we don't know how to handle it.")
+                                    print("CONF %s" % loaded_conf)
+                                    break
+                                    
+                                ssl_cert_position = curr_pos
+                            
+                            if 'ssl_certificate_key' in lines[0] and len(lines) > 1:
+                                if ssl_cert_key_position is not None:
+                                    logging.debug("There must be more than one ssl_certificate_key.. skipping this file because we don't know how to handle it.")
+                                    print("CONF %s" % loaded_conf)
+                                    break
+                                    
+                                ssl_cert_key_position = curr_pos        
+                                
+                        curr_pos += 1
+                    
+                    if listen_position is not None and server_name_position is not None:
+                        logging.debug("We have both listen and server name positions")
+                        
+                        # Check if the server even has this domain in the server_name
+                        if curr_domain not in server_conf[server_name_position][1]:
+                            logging.debug("This server does not need to be changed")
+                            continue
+                        
+                        # Check if SSL is already setup
+                        if ssl_cert_key_position is not None and ssl_cert_position is not None:
+
+                            # Check if ports are setup too
+                            if isinstance(listen_position, list):
+                                already_setup = False
+                                
+                                for listens in listen_position:
+                                    if "443" in server_conf[listens][1]:
+                                        already_setup = True
+                                        break
+                                
+                                if already_setup is True:
+                                    logging.debug("This server is already setup for SSL")
+                                    continue
+                            
+                            elif isinstance(listen_position, str):
+                                if "443" in server_conf[listens][1]:
+                                    continue
+                                    
+                        # Lets setup SSL now...
+                        logging.debug("Attempting to setup SSL for domain: %s" % curr_domain)
+                        
+                        # Multiple listen calls..
+                        if isinstance(listen_position, list):
+                            already_setup = False
+                                
+                            for listens in listen_position:
+                                if "443" in server_conf[listens][1]:
+                                    already_setup = True
+                                    break
+                            
+                            # Check if ssl port is already set
+                            if already_setup is True:
+                                logging.debug("Server port already setup for SSL")
+                                
+                            # 443 not set... set one of the listen calls to 443
+                            else:
+                                server_conf[listen_position[0]][1]
+                                
+                                # ssl port set already
+                                if "443" in server_conf[listen_position[0]][1]:
+                                    logging.debug("Server port already setup for SSL")
+                                    
+                                # ssl port not set yet..
+                                else:   
+                                    if ":" in server_conf[listen_position[0]][1]:
+                                        tmp = server_conf[listen_position[0]][1].split(":")
+                                        
+                                        if tmp[1]:
+                                            logging.debug("old port value %s" % server_conf[listen_position[0]][1])
+                                            r = re.compile(r"\d{2,5}")
+                                            tmp[1] = r.sub("443", tmp[1])
+                                            
+                                            server_conf[listen_position[0]][1] = ':'.join(tmp)
+                                            logging.debug("new port value: %s" % server_conf[listen_position[0]][1])
+                                    else:
+                                        logging.debug("old port value: %s" % server_conf[listen_position[0]][1])
+                                        r = re.compile(r"\d{2,5}")
+                                        tmp = r.sub("443", server_conf[listen_position[0]][1])
+                                        
+                                        server_conf[listen_position[0]][1] = tmp
+                                        logging.debug("new port value: %s" % server_conf[listen_position[0]][1]) 
+                                        
+                        # Single listen call..
+                        else:
+                            
+                            # ssl port set already
+                            if "443" in server_conf[listen_position][1]:
+                                logging.debug("Server port already setup for SSL")
+                                
+                            # ssl port not set yet..
+                            else:   
+                                if ":" in server_conf[listen_position][1]:
+                                    tmp = server_conf[listen_position][1].split(":")
+                                    
+                                    if tmp[1]:
+                                        logging.debug("old port value %s" % server_conf[listen_position][1])
+                                        r = re.compile(r"\d{2,5}")
+                                        tmp[1] = r.sub("443", tmp[1])
+                                        
+                                        server_conf[listen_position][1] = ':'.join(tmp)
+                                        logging.debug("new port value: %s" % server_conf[listen_position][1])
+                                       
+                                else:
+                                    logging.debug("old port value: %s" % server_conf[listen_position][1])
+                                    r = re.compile(r"\d{2,5}")
+                                    tmp = r.sub("443", server_conf[listen_position][1])
+                                    
+                                    server_conf[listen_position][1] = tmp
+                                    logging.debug("new port value: %s" % server_conf[listen_position][1])
+
+                        cert_path = self.settings.basedir + '/certs/' + curr_domain + '/fullchain.pem'
+                        cert_key_path = self.settings.basedir + '/certs/' + curr_domain + '/privkey.pem'
+
+                        if ssl_cert_position is None:
+                            server_conf.insert(0, ["ssl_certificate", cert_path])
+                        else:
+                            server_conf[ssl_cert_position][1] = cert_path
+                            
+                        if ssl_cert_key_position is None:
+                            server_conf.insert(1, ["ssl_certificate_key", cert_key_path])
+                        else:
+                            server_conf[ssl_cert_key_position][1] = cert_key_path
+
+                    file = open(filepath,"w") 
+                    file.write(dumps(loaded_conf))
+                    file.close()                    
+                    
     def check_nginx_custom_dir(self):
         if not os.path.exists(self.settings.nginx_sites_available):
             os.makedirs(self.settings.nginx_sites_available)
             
-        #self.context.notify('info', 'NGINX sites available directory exists')
         if not os.path.exists(self.settings.nginx_sites_enabled):
             os.makedirs(self.settings.nginx_sites_enabled)
-        
-        #self.context.notify('info', 'NGINX sites enabled directory exists')
 
         if os.path.exists(self.settings.nginx_sites_available) and os.path.exists(self.settings.nginx_sites_enabled):
             return True
@@ -337,11 +543,38 @@ class LetsEncryptPlugin (SectionPlugin):
        
         p = subprocess.Popen(params, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
-        #mysplit = out.split("\n")
-        #self.context.notify('info', len(mysplit))
-        logging.debug(out)
-        #for i in mysplit:
-        #    logging.debug(str(i))
+        mysplit = out.split("\n")
+        #self.settings.basedir + '/certs/' + currentDomain + '/expiration.date'
+        
+        for i in mysplit:
+            if "Processing" in i:
+                currentDomain = i.split(" ")[1]
+                logging.debug("CURRENT DOMAIN: %s" % currentDomain)
+                
+            if "Valid till" in i:
+                logging.debug("FOUND VALID TILL")
+                datesplit = i.split(" ")
+                myStart = 0
+                myEnd = 0
+                
+                for idx, val in enumerate(datesplit):
+                    if "till" in val:
+                        logging.debug("FOUND TILL: %s" % idx)
+                        myStart = idx+1
+
+                    if "GMT" in val:
+                        logging.debug("FOUND GMT: %s" % idx)
+                        myEnd = idx
+        
+        if myStart is not 0 and myEnd is not 0:
+            fullDate = ' '.join(datesplit[myStart:myEnd])
+            logging.debug("FULL DATE: %s" % fullDate)
+ 
+            filepath = self.settings.basedir + '/certs/' + currentDomain + '/expiration.date'           
+            file = open(filepath, 'w')
+            file.write("EXPIRES: " + fullDate)            
+            file.close()
+            
         if out:
             self.context.notify('info', 'Success!')
         if err:
@@ -380,18 +613,16 @@ class LetsEncryptPlugin (SectionPlugin):
         
     @on('save', 'click')
     def save_button(self):
-        self.save()
-    
-    @on('test', 'click')
-    def test_button(self):
-        logging.debug("TEST: %s" % self.list_available())
+        #self.save()
+       
+        self.testing()
         
     @on('request', 'click')
     def request_button(self):
         self.save()
         time.sleep(5)
         if not os.path.exists(self.settings.basedir + "accounts"):
-            self.context.notify('error', 'No accounts directory found, need to register')
+            self.context.notify('error', 'No accounts directory found, Registering before requesting certs..')
             self.request_certificates(True)
             
         if os.path.exists(self.settings.basedir + "accounts"):

@@ -14,6 +14,3 @@ info = PluginInfo(
 
 def init():
     import main
-    @plugin
-    class CodeView (UIElement):
-        typeid = 'codeview' 

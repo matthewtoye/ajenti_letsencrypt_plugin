@@ -22,14 +22,13 @@
 						<checkbox id="cronjob" bind="cronjob" />
 					  </formline>
 
-					  <formline text="Certificate renewal">
+					  <formline text="Force certificate renewal">
 						<checkbox id="renewal" bind="renewal" />
 					  </formline>
 					</vc>
 
 					<hc>
 					  <button text="{Save}" id="save" icon="ok"/>
-					  <button text="{Test}" id="test" icon="ok"/>
 					  <button text="Request" id="request" icon="ok"/>
 					</hc>
 
@@ -44,13 +43,13 @@
                                 <box>
                                     <right>
                                         <hc>
+											<label bind="date" style="bold"/>
                                             <button bind="__delete" icon="remove" style="icon"
                                                     warning="{Confirm deletion}"/>
                                         </hc>
                                     </right>
                                     <hc>
                                         <icon icon="globe"/>
-                                        <checkbox bind="active" id="header-active-checkbox"/>
                                         <box width="200">
                                             <label bind="name" style="bold"/>
                                         </box>
@@ -67,7 +66,7 @@
 											<label bind="dir"/>
                                         </box>
 										<center>
-											<formgroup text="SSL Chain">									
+											<formgroup text="SSL Chain (chain.pem)">									
 												<box width="700" height="300" scroll="True">
 													
 														<label bind="sslchain"/>
@@ -76,7 +75,7 @@
 											</formgroup>	
 										</center>
 										<center>
-											<formgroup text="SSL Cert">									
+											<formgroup text="SSL Cert (cert.pem)">									
 												<box width="700" height="300" scroll="True">
 													
 														<label bind="sslcert"/>
@@ -86,7 +85,7 @@
 										</center>
 									
 										<center>
-											<formgroup text="SSL Full Chain">									
+											<formgroup text="SSL Full Chain (fullchain.pem)">									
 												<box width="700" height="300" scroll="True">
 													
 														<label bind="sslfull"/>
@@ -96,7 +95,7 @@
 										</center>
 										
 										<center>
-											<formgroup text="SSL Private Key">									
+											<formgroup text="SSL Private Key (privkey.pem)">									
 												<box width="700" height="300" scroll="True">
 													
 														<label bind="sslpriv"/>
