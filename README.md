@@ -1,16 +1,11 @@
 # Ajenti LetsEncrypt Plugin
 
-**BETA VERSION: USE WITH CAUTION**
+**BETA VERSION: USE WITH CAUTION. TESTED ON UBUNTU 16.04**
 
 Easily create Let's Encrypt signed certificates to secure your server
 
-## Requirements prior to installation
-# Clone https://github.com/lukas2511/dehydrated into /etc/ (Full path after clone should be /etc/dehydrated)
-	-git clone https://github.com/lukas2511/dehydrated /etc/dehydrated
-# Install nginx
-	-apt install nginx
-	-service restart nginx
-		
+BEFORE installing this, make sure you have Nginx and Ajenti installed (This is a great guide: https://websiteforstudents.com/installing-ajenti-on-ubuntu-16-04-lts-server/)
+
 ## Installation
 ```
 # Clone this repository to `<ajenti_source>/plugins` or `/var/lib/ajenti/plugins`
@@ -19,7 +14,7 @@ Easily create Let's Encrypt signed certificates to secure your server
 # Restart Ajenti
 	-service ajenti restart (debian)
 	
-# Run in debug mode (optional)
+# (optional) Run in debug mode
 	-service ajenti stop
 	-ajenti-panel -v
 ```
@@ -27,13 +22,11 @@ Easily create Let's Encrypt signed certificates to secure your server
 ## Usage
 
 * In Ajenti-Panel go to `Security -> LetsEncrypt`
-* Replace your config options depending on your os
-* Dehydrated Basedir, Dehydrated Filename, Wellknown Basedir should all be preset and will work fine on Ubuntu
+* Replace your config options depending on your os (Dehydrated Basedir, Dehydrated Filename, Wellknown Basedir should all be preset and will work fine on Ubuntu 16.04)
 * Fill in the domains you want to create certificates for
-  * 1 domain per row (e.g.: ROW 1: domain.com sub.domain.com blog.domain.com
-							ROW 2: domain.net sub.domain.net	
-							ROW 3: mydomain.org blog.mydomain.org)
+  * Add a new domain, without any sub-domain (ex: mydomain.com)
+  * Expand the domain, and add your sub-domains (1 per line, ie: www.mydomain.com)
 * Click `Save` to store your settings but prevent requesting certificates
 * Click `Request` to request your certificates
   * Check `Force Renewal` to request certs no matter what
-* Set the SSL-certificates per domain in your `Websites` tabs
+* Set the SSL-certificates per domain in your `Websites` tabs OR click use Certs to automatically match Nginx files with available certificates and configure files (THIS IS BETA)

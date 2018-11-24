@@ -1,114 +1,160 @@
-<body>
-        <tabs id="tabs">
-            <tab title="{Main config}">
-                <pad> <!-- adds whitespace padding -->
-					<vc binder:context="letsencryptconfig"> <!-- horizontal container -->
+	<body>
+			<tabs id="tabs">
+				<tab title="{Main config}">
+					<pad> <!-- adds whitespace padding -->
+						<vc binder:context="letsencryptconfig"> <!-- horizontal container -->
 
-					  <formline text="Dehydrated Basedir">
-						<textbox bind="basedir"/>
-					  </formline>
-					  <formline text="Dehydrated Filename">
-						<textbox bind="scriptname"/>
-					  </formline>
-					  <formline text="Wellknown Basedir">
-						<textbox bind="wellknown"/>
-					  </formline>
-
-					  <formline text="Domains (one per line)">
-						<codearea id="domains" bind="domains" width="500" height="400"/>
-					  </formline>
-
-					  <formline text="Create crontask">
-						<checkbox id="cronjob" bind="cronjob" />
-					  </formline>
-
-					  <formline text="Force certificate renewal">
-						<checkbox id="renewal" bind="renewal" />
-					  </formline>
-					</vc>
-
-					<hc>
-					  <button text="{Save}" id="save" icon="ok"/>
-					  <button text="Request" id="request" icon="ok"/>
-					</hc>
-
-				</pad>
-            </tab>
-            <tab title="{Certs}" visible="false" id="certstab">
-               <pad> <!-- adds whitespace padding -->
-			   <bind:collection bind="certs" id="certs">
-                        <dt bind="__items"/>
-                        <bind:template>
-                            <collapserow>
-                                <box>
-                                    <right>
-                                        <hc>
-											<label bind="date" style="bold"/>
-                                            <button bind="__delete" icon="remove" style="icon"
-                                                    warning="{Confirm deletion}"/>
-                                        </hc>
-                                    </right>
-                                    <hc>
-                                        <icon icon="globe"/>
-                                        <box width="200">
-                                            <label bind="name" style="bold"/>
-                                        </box>
-                                    </hc>
-                                </box>
-                                <indent>
-                                    <vc>										
-                                        <box width="200">
-											<label text="Name: " style="bold"/>
-											<label bind="name"/>
-                                        </box>
-										<box width="300">
-											<label text="Directory: " style="bold"/>
-											<label bind="dir"/>
-                                        </box>
-										<center>
-											<formgroup text="SSL Chain (chain.pem)">									
-												<box width="700" height="300" scroll="True">
-													
-														<label bind="sslchain"/>
-													
-												</box>
+						  <formline text="Dehydrated Basedir">
+							<textbox bind="basedir"/>
+						  </formline>
+						  <formline text="Dehydrated Filename">
+							<textbox bind="scriptname"/>
+						  </formline>
+						  <formline text="Wellknown Basedir">
+							<textbox bind="wellknown"/>
+						  </formline>
+						  <formline text="{Domain Setup}">
+						<bind:collection bind="domains" id="domains">
+							<dt bind="__items" width="500" addrow="{Add New Domain}"/>
+							<bind:template>
+									<collapserow>
+									<box>
+										<right>
+											<hc>
+												<button bind="__delete" icon="remove" style="icon"
+														warning="{Confirm deletion}"/>
+											</hc>
+										</right>
+										<hc>
+											<icon icon="globe"/>
+											<box width="200">
+												<label bind="name" style="bold"/>
+											</box>
+										</hc>
+									</box>
+									<indent>
+										<vc>
+											<formline text="Domain Name">
+												<textbox bind="name"/>
+											</formline>
+											<formgroup text="Sub-Domains (Separate by new line)">									
+												<codearea bind="subdomains" width="480" height="200"/>
 											</formgroup>	
-										</center>
-										<center>
-											<formgroup text="SSL Cert (cert.pem)">									
-												<box width="700" height="300" scroll="True">
-													
-														<label bind="sslcert"/>
-													
-												</box>
-											</formgroup>	
-										</center>
-									
-										<center>
-											<formgroup text="SSL Full Chain (fullchain.pem)">									
-												<box width="700" height="300" scroll="True">
-													
-														<label bind="sslfull"/>
-													
-												</box>
-											</formgroup>	
-										</center>
+										</vc>
+									</indent>
+									</collapserow>
+							</bind:template>
+						</bind:collection>	
+						</formline>					
+						  <formline text="Create crontask">
+							<checkbox id="cronjob" bind="cronjob" />
+						  </formline>
+
+						  <hc>
+						  <formline text="Force CERT Renewal">
+							<checkbox id="renewal" bind="renewal" />
+						  </formline>
+						  </hc>
+						</vc>
+
+						<hc>
+						  <button text="{Save}" id="save" icon="ok"/>
+						  <button text="Request" id="request" icon="ok"/>
+						  <button text="Use Certs" id="updatenginx" icon="ok"/>
+						  <button text="{Helper}" id="helperbutton" icon="ok" visible="False"/>
+						</hc>
+						<vc>
+							<dt id="hidden_output" visible="False" filtering="False">
+								<dtr>
+									<dth text="Output" />
+								</dtr>
+								<dtr>
+									<dtd>
+										<box height="300" scroll="True">
+											<label bind="output" />
+										</box>
+											<button text="{Done}" id="done" icon="ok"/>
+									</dtd>
+								</dtr>
+							</dt>
+						</vc>
+					</pad>
+				</tab>
+				<tab title="{Certificates}" visible="false" id="certstab">
+				   <pad> <!-- adds whitespace padding -->
+				   <bind:collection bind="certs" id="certs">
+							<dt bind="__items"/>
+							<bind:template>
+								<collapserow>
+									<box>
+										<right>
+											<hc>
+												<label bind="date" style="bold"/>
+												<button bind="__delete" icon="remove" style="icon"
+														warning="{Confirm deletion}"/>
+											</hc>
+										</right>
+										<hc>
+											<icon icon="globe"/>
+											<box width="200">
+												<label bind="name" style="bold"/>
+											</box>
+										</hc>
+									</box>
+									<indent>
+										<vc>										
+											<box width="200">
+												<label text="Name: " style="bold"/>
+												<label bind="name"/>
+											</box>
+											<box width="300">
+												<label text="Directory: " style="bold"/>
+												<label bind="dir"/>
+											</box>
+											<center>
+												<formgroup text="SSL Chain (chain.pem)">									
+													<box width="700" height="300" scroll="True">
+														
+															<label bind="sslchain"/>
+														
+													</box>
+												</formgroup>	
+											</center>
+											<center>
+												<formgroup text="SSL Cert (cert.pem)">									
+													<box width="700" height="300" scroll="True">
+														
+															<label bind="sslcert"/>
+														
+													</box>
+												</formgroup>	
+											</center>
 										
-										<center>
-											<formgroup text="SSL Private Key (privkey.pem)">									
-												<box width="700" height="300" scroll="True">
+											<center>
+												<formgroup text="SSL Full Chain (fullchain.pem)">									
+													<box width="700" height="300" scroll="True">
+														
+															<label bind="sslfull"/>
+														
+													</box>
+												</formgroup>	
+											</center>
+											
+											<center>
+												<formgroup text="SSL Private Key (privkey.pem)">									
+													<box width="700" height="300" scroll="True">
+														
+															<label bind="sslpriv"/>
 													
-														<label bind="sslpriv"/>
-												
-												</box>
-											</formgroup>	
-										</center>
-                                    </vc>
-                                </indent>
-                            </collapserow>
-                        </bind:template>
-                    </bind:collection>				
-				</pad>
-            </tab>
-        </tabs>
-    </body>
+													</box>
+												</formgroup>	
+											</center>
+										</vc>
+									</indent>
+								</collapserow>
+							</bind:template>
+						</bind:collection>				
+					</pad>
+				</tab>
+			</tabs>
+		</body>
